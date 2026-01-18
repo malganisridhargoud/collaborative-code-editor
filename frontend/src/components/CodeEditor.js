@@ -14,6 +14,12 @@ import { GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 
 /* =======================
+   Backend URL (ENV-AWARE)
+======================= */
+const BACKEND_URL =
+  process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+
+/* =======================
    Language Templates
 ======================= */
 const LANGUAGE_TEMPLATES = {
@@ -117,12 +123,12 @@ export default function CodeEditor() {
   const handleGoogleLogin = async (credentialResponse) => {
     try {
       const res = await axios.post(
-        'http://127.0.0.1:8000/api/auth/google/',
+        `${BACKEND_URL}/api/auth/google/`,
         { token: credentialResponse.credential }
       );
 
       localStorage.setItem('access', res.data.access);
-      axios.defaults.headers.common['Authorization'] =
+      axios.defaults.headers.common.Authorization =
         `Bearer ${res.data.access}`;
 
       setUserProfile(res.data.user);
@@ -136,10 +142,13 @@ export default function CodeEditor() {
      WebSocket Logic
   ======================= */
   useEffect(() => {
-    if (!isJoined) return;
+    if (!isJoined || !userProfile) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//127.0.0.1:8000/ws/code/${roomId}/`;
+    const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss' : 'ws';
+    const wsUrl = `${wsProtocol}://${BACKEND_URL.replace(
+      /^https?:\/\//,
+      ''
+    )}/ws/code/${roomId}/`;
 
     setConnectionStatus('Connecting...');
     const ws = new WebSocket(wsUrl);
@@ -148,7 +157,12 @@ export default function CodeEditor() {
     ws.onopen = () => {
       setIsConnected(true);
       setConnectionStatus('Connected');
-      ws.send(JSON.stringify({ type: 'join', username: userProfile.name }));
+      ws.send(
+        JSON.stringify({
+          type: 'join',
+          username: userProfile.email, // stable identifier
+        })
+      );
     };
 
     ws.onmessage = (e) => {
@@ -164,11 +178,14 @@ export default function CodeEditor() {
         setUsers(data.users);
       }
 
-      if (data.type === 'code_update' && data.user !== userProfile.name) {
+      if (data.type === 'code_update' && data.user !== userProfile.email) {
         setCode(data.code);
       }
 
-      if (data.type === 'language_change' && data.user !== userProfile.name) {
+      if (
+        data.type === 'language_change' &&
+        data.user !== userProfile.email
+      ) {
         setLanguage(data.language);
         setCode(data.code);
         setOutput('');
@@ -249,7 +266,7 @@ export default function CodeEditor() {
      UI STATES
   ======================= */
 
-  // 1️⃣ Google Login Screen
+  // Login
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
@@ -264,7 +281,7 @@ export default function CodeEditor() {
     );
   }
 
-  // 2️⃣ Room ID Screen
+  // Room Join
   if (!isJoined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
