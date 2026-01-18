@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 
 load_dotenv()
 
@@ -113,3 +114,19 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
 }
+
+
+REDIS_URL = os.getenv("REDIS_URL")
+
+if REDIS_URL:
+    redis = urlparse(REDIS_URL)
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [(redis.hostname, redis.port)],
+                "password": redis.password,
+            },
+        },
+    }
+
