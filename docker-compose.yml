@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./codesync-project/backend
+    ports:
+      - "8080:8080"
+    environment:
+      DEBUG: "False"
+      DB_NAME: codesync_db
+      DB_USER: admin
+      DB_PASSWORD: password
+      DB_HOST: cloudsql-ip
+      REDIS_HOST: redis-ip
+
+  frontend:
+    build: ./codesync-project/frontend
+    ports:
+      - "3000:80"
