@@ -29,7 +29,6 @@ services:
     name: codesync-frontend
     env: static
     plan: free
-    region: frankfurt
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: build
@@ -44,3 +43,6 @@ services:
     name: codesync-redis
     plan: free
     region: frankfurt
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: allow all internal traffic
