@@ -5,6 +5,7 @@ services:
   - type: web
     name: codesync-backend
     env: docker
+    plan: free
     region: frankfurt
     rootDir: backend
     dockerfilePath: Dockerfile
@@ -27,6 +28,7 @@ services:
   - type: web
     name: codesync-frontend
     env: static
+    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: build
