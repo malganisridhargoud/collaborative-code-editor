@@ -5,6 +5,7 @@ Django==4.2.7
 djangorestframework==3.14.0
 django-cors-headers==4.3.0
 python-dotenv==1.0.0
+djangorestframework-simplejwt
 
 # -----------------------------
 # ASGI + WebSockets
@@ -12,6 +13,7 @@ python-dotenv==1.0.0
 channels==4.0.0
 daphne==4.0.0
 channels-redis==4.1.0
+python-dotenv
 
 # -----------------------------
 # Redis client
