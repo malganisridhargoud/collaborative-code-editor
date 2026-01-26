@@ -1,110 +1,46 @@
-import os
-from google.oauth2 import id_token
-from google.auth.transport import requests
-
 from django.contrib.auth.models import User
-from rest_framework.views import APIView
+from django.contrib.auth import authenticate
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Room, CodeSession
-from .serializers import RoomSerializer
+
+@api_view(["POST"])
+def register(request):
+    email = request.data.get("email")
+    password = request.data.get("password")
+
+    if not email or not password:
+        return Response({"error": "Email and password required"}, status=400)
+
+    if User.objects.filter(username=email).exists():
+        return Response({"error": "User already exists"}, status=400)
+
+    User.objects.create_user(
+        username=email,
+        email=email,
+        password=password
+    )
+
+    return Response({"message": "User registered successfully"}, status=201)
 
 
-class GoogleLoginView(APIView):
-    def post(self, request):
-        token = request.data.get("token")
+@api_view(["POST"])
+def login(request):
+    email = request.data.get("email")
+    password = request.data.get("password")
 
-        if not token:
-            return Response(
-                {"error": "Token is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    user = authenticate(username=email, password=password)
 
-        try:
-            idinfo = id_token.verify_oauth2_token(
-                token,
-                requests.Request(),
-                os.getenv("GOOGLE_CLIENT_ID"),
-            )
+    if not user:
+        return Response({"error": "Invalid credentials"}, status=401)
 
-            email = idinfo.get("email")
-            name = idinfo.get("name", "")
+    refresh = RefreshToken.for_user(user)
 
-            if not email:
-                return Response(
-                    {"error": "Invalid Google account"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            user, _ = User.objects.get_or_create(
-                username=email,
-                defaults={
-                    "email": email,
-                    "first_name": name,
-                },
-            )
-
-            refresh = RefreshToken.for_user(user)
-
-            return Response(
-                {
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                    "user": {
-                        "email": user.email,
-                        "name": user.first_name,
-                    },
-                }
-            )
-
-        except Exception:
-            return Response(
-                {"error": "Invalid Google token"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-
-class RoomView(APIView):
-    def get(self, request, room_id):
-        try:
-            room = Room.objects.get(room_id=room_id)
-            session = CodeSession.objects.get(room=room)
-
-            return Response(
-                {
-                    "room": RoomSerializer(room).data,
-                    "code": session.code,
-                    "language": session.language,
-                }
-            )
-        except Room.DoesNotExist:
-            return Response(
-                {"error": "Room not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    def post(self, request):
-        room_id = request.data.get("room_id")
-
-        if not room_id:
-            return Response(
-                {"error": "room_id required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        room, created = Room.objects.get_or_create(room_id=room_id)
-
-        if created:
-            CodeSession.objects.create(
-                room=room,
-                code="// Welcome to CodeSync!",
-                language="javascript",
-            )
-
-        return Response(
-            RoomSerializer(room).data,
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
-        )
+    return Response({
+        "access": str(refresh.access_token),
+        "user": {
+            "email": user.email
+        }
+    })

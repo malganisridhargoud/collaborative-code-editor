@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+// frontend/src/components/CodeEditor.js
+import React, { useEffect, useRef, useState } from "react";
+import axios from "axios";
+import "./CodeEditor.css";
+
 import {
   Users,
   Copy,
@@ -9,373 +13,484 @@ import {
   Code2,
   Wifi,
   WifiOff,
-} from 'lucide-react';
-import { GoogleLogin } from '@react-oauth/google';
-import axios from 'axios';
+  GitPullRequest,
+  Zap,
+  Disc,
+} from "lucide-react";
 
-/* =======================
-   Backend URL (ENV-AWARE)
-======================= */
-const BACKEND_URL =
-  process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+/* Backend URL */
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:8000";
 
-/* =======================
-   Language Templates
-======================= */
+/* Language templates — removed Go, Rust, Ruby, PHP, Kotlin */
 const LANGUAGE_TEMPLATES = {
   javascript: {
-    code: `// JavaScript
-console.log("Hello, World!");
-
-function sum(a, b) {
-  return a + b;
-}
-
-console.log("5 + 3 =", sum(5, 3));`,
-    compiler: 'Node.js',
+    label: "JavaScript",
+    template: `// JavaScript\nconsole.log("Hello, World!");`,
+    compiler: "Node.js",
+  },
+  typescript: {
+    label: "TypeScript",
+    template: `// TypeScript\nconst greet = (name: string) => console.log("Hello, " + name);\ngreet("World");`,
+    compiler: "ts-node",
   },
   python: {
-    code: `# Python
-print("Hello, World!")
-
-def sum(a, b):
-    return a + b
-
-print("5 + 3 =", sum(5, 3))`,
-    compiler: 'Python 3',
+    label: "Python",
+    template: `# Python\nprint("Hello, World!")`,
+    compiler: "Python 3",
   },
   java: {
-    code: `// Java
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("Hello, World!");
-        System.out.println("5 + 3 = " + sum(5, 3));
-    }
-
-    public static int sum(int a, int b) {
-        return a + b;
-    }
-}`,
-    compiler: 'Java JDK',
+    label: "Java",
+    template: `// Java\npublic class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello, World!");\n  }\n}`,
+    compiler: "JDK",
   },
   cpp: {
-    code: `// C++
-#include <iostream>
-using namespace std;
-
-int sum(int a, int b) {
-    return a + b;
-}
-
-int main() {
-    cout << "Hello, World!" << endl;
-    cout << "5 + 3 = " << sum(5, 3) << endl;
-    return 0;
-}`,
-    compiler: 'G++',
+    label: "C++",
+    template: `// C++\n#include <iostream>\nint main(){ std::cout << "Hello, World!\\n"; return 0; }`,
+    compiler: "g++",
   },
   c: {
-    code: `// C
-#include <stdio.h>
-
-int sum(int a, int b) {
-    return a + b;
-}
-
-int main() {
-    printf("Hello, World!\\n");
-    printf("5 + 3 = %d\\n", sum(5, 3));
-    return 0;
-}`,
-    compiler: 'GCC',
+    label: "C",
+    template: `// C\n#include <stdio.h>\nint main(){ printf("Hello, World!\\n"); return 0; }`,
+    compiler: "gcc",
   },
 };
 
+/* ----- Helpers ----- */
+function initialsFromEmail(email) {
+  if (!email) return "?";
+  const part = email.split("@")[0];
+  const pieces = part.split(/[._-]/).filter(Boolean);
+  if (pieces.length >= 2) return (pieces[0][0] + pieces[1][0]).toUpperCase();
+  return part.slice(0, 2).toUpperCase();
+}
+
+/* ===== Component ===== */
 export default function CodeEditor() {
-  /* =======================
-     Auth & Room State
-  ======================= */
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
-  const [roomId, setRoomId] = useState('');
-  const [isJoined, setIsJoined] = useState(false);
+  /* Auth */
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isRegister, setIsRegister] = useState(false);
+  const [user, setUser] = useState(null);
 
-  /* =======================
-     Editor State
-  ======================= */
-  const [code, setCode] = useState(LANGUAGE_TEMPLATES.javascript.code);
-  const [language, setLanguage] = useState('javascript');
+  /* Room / Connection */
+  const [roomId, setRoomId] = useState("");
+  const [joined, setJoined] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [connectionHint, setConnectionHint] = useState("Disconnected");
+  const [reconnectTick, setReconnectTick] = useState(0);
+
+  /* Editor */
+  const [language, setLanguage] = useState("javascript");
+  const [code, setCode] = useState(LANGUAGE_TEMPLATES.javascript.template);
   const [users, setUsers] = useState([]);
-
-  const [output, setOutput] = useState('');
-  const [isCompiling, setIsCompiling] = useState(false);
+  const [output, setOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('Disconnected');
-
   const wsRef = useRef(null);
+  const reconnectRef = useRef({ attempts: 0, timer: null });
   const outputEndRef = useRef(null);
 
-  /* =======================
-     Google Login
-  ======================= */
-  const handleGoogleLogin = async (credentialResponse) => {
-    try {
-      const res = await axios.post(
-        `${BACKEND_URL}/api/auth/google/`,
-        { token: credentialResponse.credential }
-      );
-
-      localStorage.setItem('access', res.data.access);
-      axios.defaults.headers.common.Authorization =
-        `Bearer ${res.data.access}`;
-
-      setUserProfile(res.data.user);
-      setIsAuthenticated(true);
-    } catch (err) {
-      console.error('Google login failed', err);
-    }
-  };
-
-  /* =======================
-     WebSocket Logic
-  ======================= */
+  /* ---------- WebSocket connection & handlers ---------- */
   useEffect(() => {
-    if (!isJoined || !userProfile) return;
+    if (!joined || !user || !roomId) return;
 
-    const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss' : 'ws';
-    const wsUrl = `${wsProtocol}://${BACKEND_URL.replace(
-      /^https?:\/\//,
-      ''
-    )}/ws/code/${roomId}/`;
+    const protocol = BACKEND_URL.startsWith("https") ? "wss" : "ws";
+    const host = BACKEND_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    const url = `${protocol}://${host}/ws/code/${roomId}/`;
 
-    setConnectionStatus('Connecting...');
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    let ws;
+    try {
+      ws = new WebSocket(url);
+      wsRef.current = ws;
+      setConnectionHint("Connecting...");
+    } catch (e) {
+      setConnectionHint("Connection failed");
+      return;
+    }
 
     ws.onopen = () => {
-      setIsConnected(true);
-      setConnectionStatus('Connected');
-      ws.send(
-        JSON.stringify({
-          type: 'join',
-          username: userProfile.email, // stable identifier
-        })
-      );
+      reconnectRef.current.attempts = 0;
+      setConnected(true);
+      setConnectionHint("Connected");
+      // join with stable identifier
+      try {
+        ws.send(JSON.stringify({ type: "join", username: user.email }));
+      } catch (e) {}
     };
 
-    ws.onmessage = (e) => {
-      const data = JSON.parse(e.data);
+    ws.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        switch (data.type) {
+          case "init":
+            if (data.code) setCode(data.code);
+            if (data.language) setLanguage(data.language);
+            if (Array.isArray(data.users)) setUsers(data.users);
+            break;
 
-      if (data.type === 'init') {
-        setCode(data.code);
-        setLanguage(data.language);
-        setUsers(data.users);
-      }
+          case "user_joined":
+          case "user_left":
+            setUsers(Array.isArray(data.users) ? data.users : []);
+            break;
 
-      if (data.type === 'user_joined' || data.type === 'user_left') {
-        setUsers(data.users);
-      }
+          case "code_update":
+            // update only when from other users to avoid echo
+            if (!data.user || data.user !== user.email) {
+              if (typeof data.code === "string") setCode(data.code);
+            }
+            break;
 
-      if (data.type === 'code_update' && data.user !== userProfile.email) {
-        setCode(data.code);
-      }
+          case "language_change":
+            if (!data.user || data.user !== user.email) {
+              if (data.language) setLanguage(data.language);
+              if (typeof data.code === "string") setCode(data.code);
+              setOutput("");
+            }
+            break;
 
-      if (
-        data.type === 'language_change' &&
-        data.user !== userProfile.email
-      ) {
-        setLanguage(data.language);
-        setCode(data.code);
-        setOutput('');
-      }
+          case "compile_result":
+            setOutput(String(data.output ?? ""));
+            setIsRunning(false);
+            break;
 
-      if (data.type === 'compile_result') {
-        setOutput(data.output);
-        setIsCompiling(false);
+          case "output_cleared":
+            setOutput("");
+            break;
+
+          default:
+            // ignore unknown messages
+            break;
+        }
+      } catch (err) {
+        console.error("WS message parse error", err);
       }
     };
 
     ws.onclose = () => {
-      setIsConnected(false);
-      setConnectionStatus('Disconnected');
+      setConnected(false);
+      setConnectionHint("Disconnected");
+      reconnectRef.current.attempts += 1;
+      const a = reconnectRef.current.attempts;
+      const delay = Math.min(1000 * Math.pow(2, a), 10000);
+      reconnectRef.current.timer = setTimeout(() => {
+        setReconnectTick((t) => t + 1); // trigger reconnect effect
+      }, delay);
     };
 
-    ws.onerror = () => {
-      setIsConnected(false);
-      setConnectionStatus('Error');
+    ws.onerror = (err) => {
+      console.error("WebSocket error", err);
+      setConnected(false);
+      setConnectionHint("Connection error");
     };
 
-    return () => ws.close();
-  }, [isJoined, roomId, userProfile]);
+    return () => {
+      try {
+        clearTimeout(reconnectRef.current.timer);
+        ws.close();
+      } catch (e) {}
+    };
+    // reconnectTick included to trigger re-run when reconnection is attempted
+  }, [joined, roomId, user, reconnectTick]);
 
-  /* =======================
-     Editor Actions
-  ======================= */
-  const handleCodeChange = (e) => {
-    const newCode = e.target.value;
-    setCode(newCode);
+  useEffect(() => {
+    outputEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [output]);
 
-    wsRef.current?.send(
-      JSON.stringify({
-        type: 'code_update',
-        code: newCode,
-        user: userProfile.email,
-        language,
-      })
-    );
+  /* ---------- Auth handlers (simple local auth endpoints) ---------- */
+  const handleAuth = async () => {
+    if (!email || !password) return alert("Email & password required");
+    try {
+      const url = isRegister ? `${BACKEND_URL}/api/auth/register/` : `${BACKEND_URL}/api/auth/login/`;
+      const res = await axios.post(url, { email, password });
+      if (isRegister) {
+        alert("Registered. Please sign in.");
+        setIsRegister(false);
+        return;
+      }
+      // on login, backend expected to return { access, user }
+      axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.access}`;
+      setUser(res.data.user || { email });
+    } catch (err) {
+      console.error("auth error", err);
+      alert(err.response?.data?.error || "Auth failed");
+    }
   };
 
-  const handleLanguageChange = (lang) => {
-    const newCode = LANGUAGE_TEMPLATES[lang].code;
-    setLanguage(lang);
-    setCode(newCode);
-    setOutput('');
-
-    wsRef.current?.send(
-      JSON.stringify({
-        type: 'language_change',
-        language: lang,
-        code: newCode,
-        user: userProfile.email,
-      })
-    );
-  };
-
-  const handleCompile = () => {
-    setIsCompiling(true);
-    setOutput('Running...\n');
-
-    wsRef.current?.send(
-      JSON.stringify({
-        type: 'compile',
-        code,
-        language,
-      })
-    );
-  };
-
-  const handleCopyRoomId = () => {
-    navigator.clipboard.writeText(roomId);
+  /* ---------- small utilities ---------- */
+  const copyRoom = async () => {
+    if (!roomId) return;
+    await navigator.clipboard.writeText(roomId);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setCopied(false), 1400);
   };
 
-  /* =======================
-     UI STATES
-  ======================= */
+  /* ---------- code / language events ---------- */
+  const sendCodeUpdate = (newCode) => {
+    setCode(newCode);
+    try {
+      wsRef.current?.send(JSON.stringify({ type: "code_update", code: newCode, language, user: user.email }));
+    } catch (e) {}
+  };
 
-  // Login
-  if (!isAuthenticated) {
+  const handleLanguageChange = (langKey) => {
+    const template = LANGUAGE_TEMPLATES[langKey]?.template ?? "";
+    setLanguage(langKey);
+    setCode(template);
+    try {
+      wsRef.current?.send(JSON.stringify({ type: "language_change", language: langKey, code: template, user: user.email }));
+    } catch (e) {}
+  };
+
+  /* ---------- run / compile / clear ---------- */
+  const handleRun = () => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      alert("Not connected to server");
+      return;
+    }
+    setIsRunning(true);
+    setOutput("Compiling and executing...\n");
+    try {
+      wsRef.current.send(JSON.stringify({ type: "compile", code, language, user: user.email }));
+    } catch (e) {
+      console.error(e);
+      setIsRunning(false);
+    }
+  };
+
+  const handleClearOutput = () => {
+    setOutput("");
+    try {
+      wsRef.current?.send(JSON.stringify({ type: "clear_output", user: user.email }));
+    } catch (e) {}
+  };
+
+  /* ---------- leave ---------- */
+  const handleLeave = () => {
+    try {
+      wsRef.current?.close();
+    } catch (e) {}
+    setJoined(false);
+    setRoomId("");
+    setUsers([]);
+    setOutput("");
+    setConnected(false);
+    setConnectionHint("Disconnected");
+  };
+
+  /* ---------- UI states ---------- */
+  if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="bg-slate-800 p-8 rounded-xl w-96 text-center">
-          <h1 className="text-3xl font-bold text-white mb-6">CodeSync</h1>
-          <GoogleLogin
-            onSuccess={handleGoogleLogin}
-            onError={() => console.log('Login Failed')}
+      <div className="ce-auth-wrap">
+        <div className="ce-auth-card">
+          <div className="ce-brand">
+            <Code2 size={28} /> <h1>CodeSync</h1>
+          </div>
+
+          <p className="ce-sub">Real-time collaborative code editor</p>
+
+          <input
+            className="ce-input"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
+          <input
+            className="ce-input"
+            placeholder="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button className="ce-btn primary" onClick={handleAuth}>
+            {isRegister ? "Create account" : "Sign in"}
+          </button>
+
+          <div className="ce-row between">
+            <button className="link" onClick={() => setIsRegister(!isRegister)}>
+              {isRegister ? "Already have an account?" : "New user? Register"}
+            </button>
+            <small className="muted">Local auth (dev)</small>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Room Join
-  if (!isJoined) {
+  if (!joined) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="bg-slate-800 p-8 rounded-xl w-96">
-          <h2 className="text-xl text-white mb-4">
-            Welcome, {userProfile.email}
-          </h2>
+      <div className="ce-auth-wrap">
+        <div className="ce-auth-card">
+          <div className="ce-brand">
+            <Code2 size={28} /> <h1>CodeSync</h1>
+          </div>
+
+          <p className="ce-sub">Welcome, <b>{user.email}</b></p>
 
           <input
-            placeholder="Enter Room ID"
-            className="w-full mb-4 p-2 bg-slate-700 text-white rounded"
+            className="ce-input"
+            placeholder="Room ID (e.g. team-frontend)"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
           />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="ce-btn primary"
+              onClick={() => {
+                if (!roomId) return alert("Enter Room ID");
+                setJoined(true);
+              }}
+            >
+              Join Room
+            </button>
+            <button
+              className="ce-btn"
+              onClick={() => {
+                const id = Math.random().toString(36).slice(2, 9);
+                setRoomId(id);
+                setJoined(true);
+              }}
+            >
+              Create & Join
+            </button>
+          </div>
 
-          <button
-            className="w-full bg-indigo-600 py-2 rounded text-white"
-            onClick={() => setIsJoined(true)}
-            disabled={!roomId}
-          >
-            Join Room
-          </button>
+          <div className="ce-row" style={{ marginTop: 12 }}>
+            <small className="muted">Share Room ID to collaborate</small>
+          </div>
         </div>
       </div>
     );
   }
 
-  /* =======================
-     Main Editor UI
-  ======================= */
+  /* ---------- Main Editor UI ---------- */
   return (
-    <div className="h-screen flex flex-col bg-slate-900 text-white">
-      <header className="flex items-center justify-between p-4 bg-slate-800">
-        <div className="flex items-center gap-3">
-          <Code2 />
-          <span className="font-mono">{roomId}</span>
-          <button onClick={handleCopyRoomId}>
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-          </button>
-          <span className="flex items-center gap-1 text-sm">
-            {isConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {connectionStatus}
-          </span>
+    <div className="ce-app">
+      <header className="ce-header">
+        <div className="ce-left">
+          <div className="ce-logo">
+            <Code2 /> <span className="ce-title">CodeSync</span>
+          </div>
+
+          <div className="ce-room">
+            <strong>{roomId}</strong>
+            <button className="icon-btn" title="Copy room" onClick={copyRoom}>
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="ce-center">
           <select
+            className="ce-select"
             value={language}
             onChange={(e) => handleLanguageChange(e.target.value)}
-            className="bg-slate-700 p-1 rounded"
           >
-            {Object.keys(LANGUAGE_TEMPLATES).map((l) => (
-              <option key={l} value={l}>
-                {l}
+            {Object.entries(LANGUAGE_TEMPLATES).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v.label}
               </option>
             ))}
           </select>
 
           <button
-            onClick={handleCompile}
-            disabled={isCompiling}
-            className="bg-green-600 px-3 py-1 rounded flex items-center gap-1"
+            className="ce-btn run"
+            onClick={handleRun}
+            disabled={isRunning || !connected}
+            title={!connected ? "Connect to server first" : "Run code"}
           >
-            <Play size={14} /> Run
+            <Play /> {isRunning ? "Running..." : "Run"}
           </button>
+        </div>
 
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-red-600 px-3 py-1 rounded flex items-center gap-1"
-          >
-            <LogOut size={14} /> Leave
-          </button>
+        <div className="ce-right">
+          <div className={`ce-conn ${connected ? "online" : "offline"}`}>
+            {connected ? <Wifi size={16} /> : <WifiOff size={16} />} <span>{connectionHint}</span>
+          </div>
+
+          <div className="user-chip">
+            <div className="avatar">{initialsFromEmail(user.email)}</div>
+            <div className="user-email">{user.email}</div>
+            <button className="icon-btn danger" title="Leave room" onClick={handleLeave}>
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="flex flex-1">
-        <textarea
-          value={code}
-          onChange={handleCodeChange}
-          className="flex-1 p-4 bg-slate-900 font-mono outline-none"
-        />
-
-        <div className="w-80 bg-slate-800 flex flex-col">
-          <div className="p-3 border-b border-slate-700 flex items-center gap-2">
-            <Users size={16} /> Users ({users.length})
+      <main className="ce-main">
+        <section className="ce-editor-pane">
+          <div className="ce-editor-toolbar">
+            <div className="meta">
+              <GitPullRequest size={14} /> <span className="muted">{LANGUAGE_TEMPLATES[language].compiler}</span>
+            </div>
+            <div className="meta">
+              <Zap size={14} /> <span className="muted">Realtime</span>
+            </div>
           </div>
 
-          <div className="flex-1 p-3 overflow-auto font-mono text-sm">
-            {output.split('\n').map((line, i) => (
-              <div key={i}>{line || '\u00A0'}</div>
-            ))}
-            <div ref={outputEndRef} />
+          <textarea
+            className="ce-textarea"
+            value={code}
+            onChange={(e) => sendCodeUpdate(e.target.value)}
+            spellCheck={false}
+          />
+        </section>
+
+        <aside className="ce-side">
+          <div className="side-block">
+            <div className="side-title">
+              <Users size={16} /> Active users
+            </div>
+            <div className="users-list">
+              {users.length === 0 ? (
+                <div className="muted">No other users</div>
+              ) : (
+                users.map((u) => (
+                  <div className="user-row" key={u}>
+                    <div className="avatar small">{initialsFromEmail(u)}</div>
+                    <div className="user-name">{u}</div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
+
+          <div className="side-block">
+            <div className="side-title">
+              <Terminal size={16} /> Output
+            </div>
+            <div className="output">
+              {output ? (
+                output.split("\n").map((ln, i) => (
+                  <div key={i} className={ln.toLowerCase().includes("error") ? "err" : ""}>
+                    {ln || "\u00A0"}
+                  </div>
+                ))
+              ) : (
+                <div className="muted">No output yet</div>
+              )}
+              <div ref={outputEndRef} />
+            </div>
+
+            <div className="side-actions">
+              <button className="ce-btn small" onClick={handleClearOutput}>
+                Clear
+              </button>
+              <button
+                className="ce-btn small secondary"
+                onClick={() => navigator.clipboard.writeText(output || "")}
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+
+          <div className="side-block muted small">
+            <Disc size={12} /> Tip: Use the Run button to compile & stream output to everyone in the room.
+          </div>
+        </aside>
       </main>
     </div>
   );
