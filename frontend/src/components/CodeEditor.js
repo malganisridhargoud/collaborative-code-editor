@@ -16,6 +16,7 @@ import {
   GitPullRequest,
   Zap,
   Disc,
+  Github,
 } from "lucide-react";
 
 /* Backend URL */
@@ -86,10 +87,69 @@ export default function CodeEditor() {
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showSide, setShowSide] = useState(false);
 
   const wsRef = useRef(null);
   const reconnectRef = useRef({ attempts: 0, timer: null });
   const outputEndRef = useRef(null);
+
+
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const access = params.get("access");
+  const email = params.get("email");
+
+  if (access && email) {
+    localStorage.setItem("access", access);
+    localStorage.setItem("user", JSON.stringify({ email }));
+
+    axios.defaults.headers.common.Authorization =
+      `Bearer ${access}`;
+
+    setUser({ email });
+
+    // clean URL
+    window.history.replaceState({}, document.title, "/");
+  }
+}, []);
+
+  // 🔐 Restore login on refresh
+  useEffect(() => {
+    const token = localStorage.getItem("access");
+    const savedUser = localStorage.getItem("user");
+
+    if (token && savedUser) {
+      axios.defaults.headers.common.Authorization =
+        `Bearer ${token}`;
+
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  //github
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const access = params.get("access");
+  const email = params.get("email");
+
+  if (access && email) {
+    axios.defaults.headers.common["Authorization"] = `Bearer ${access}`;
+    setUser({ email });
+    window.history.replaceState({}, document.title, "/");
+  }
+}, []);
+  
+  //logout
+   const logout = () => {
+  localStorage.removeItem("access");
+  localStorage.removeItem("user");
+  localStorage.removeItem("lastRoom");
+
+  delete axios.defaults.headers.common.Authorization;
+
+  setUser(null);
+  setJoined(false);
+};
 
   /* ---------- WebSocket connection & handlers ---------- */
   useEffect(() => {
@@ -209,13 +269,25 @@ export default function CodeEditor() {
         return;
       }
       // on login, backend expected to return { access, user }
-      axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.access}`;
-      setUser(res.data.user || { email });
+      // axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.access}`;
+      // setUser(res.data.user || { email });
+      localStorage.setItem("access", res.data.access);
+localStorage.setItem("user", JSON.stringify(res.data.user));
+
+axios.defaults.headers.common.Authorization =
+  `Bearer ${res.data.access}`;
+
+setUser(res.data.user);
     } catch (err) {
       console.error("auth error", err);
       alert(err.response?.data?.error || "Auth failed");
     }
   };
+
+      // giyhub login
+    const handleGitHubLogin = () => {
+  window.location.href = `${BACKEND_URL}/api/auth/github/login/`;
+};
 
   /* ---------- small utilities ---------- */
   const copyRoom = async () => {
@@ -307,6 +379,11 @@ export default function CodeEditor() {
             {isRegister ? "Create account" : "Sign in"}
           </button>
 
+          <button className = "icon-btn github" onClick = {handleGitHubLogin}
+          title = "Sign in with Github" > 
+          <Github size = {22}/>
+          </button>
+
           <div className="ce-row between">
             <button className="link" onClick={() => setIsRegister(!isRegister)}>
               {isRegister ? "Already have an account?" : "New user? Register"}
@@ -325,6 +402,10 @@ export default function CodeEditor() {
           <div className="ce-brand">
             <Code2 size={28} /> <h1>CodeSync</h1>
           </div>
+
+          <button onClick={logout}>
+           <LogOut size={16} />
+            </button>
 
           <p className="ce-sub">Welcome, <b>{user.email}</b></p>
 
@@ -412,6 +493,15 @@ export default function CodeEditor() {
           <div className="user-chip">
             <div className="avatar">{initialsFromEmail(user.email)}</div>
             <div className="user-email">{user.email}</div>
+          
+                  <button
+                 className="icon-btn mobile-only"
+                 title="Show output & users"
+                onClick={() => setShowSide((v) => !v)}
+                  >
+                 <Terminal size={18} />
+                </button>
+
             <button className="icon-btn danger" title="Leave room" onClick={handleLeave}>
               <LogOut size={16} />
             </button>
@@ -438,7 +528,7 @@ export default function CodeEditor() {
           />
         </section>
 
-        <aside className="ce-side">
+        <aside className={`ce-side ${showSide ? "open" : ""}`}>
           <div className="side-block">
             <div className="side-title">
               <Users size={16} /> Active users
@@ -487,9 +577,6 @@ export default function CodeEditor() {
             </div>
           </div>
 
-          <div className="side-block muted small">
-            <Disc size={12} /> Tip: Use the Run button to compile & stream output to everyone in the room.
-          </div>
         </aside>
       </main>
     </div>
