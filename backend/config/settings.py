@@ -1,16 +1,16 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from urllib.parse import urlparse
 from datetime import timedelta
+import urllib.parse
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-in-production')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['*']
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 INSTALLED_APPS = [
     'daphne',
@@ -27,10 +27,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -49,17 +49,44 @@ DATABASES = {
     }
 }
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [os.environ.get("REDIS_URL")],
-        },
-    },
-}
+# Redis/Channels Configuration
+REDIS_URL = os.getenv("REDIS_URL")
 
-CORS_ALLOW_ALL_ORIGINS = True
+if REDIS_URL:
+    parsed = urllib.parse.urlparse(REDIS_URL)
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [{
+                    "address": (parsed.hostname, parsed.port or 6379),
+                    "password": parsed.password,
+                    "ssl": parsed.scheme == "rediss",
+                }],
+            },
+        },
+    }
+else:
+    # Fallback for local development
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        },
+    }
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "https://codesync-frontend.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
 CORS_ALLOW_CREDENTIALS = True
+
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = [
+    "https://codesync-frontend.onrender.com",
+    "https://collaborative-code-editor-1-darj.onrender.com",
+]
 
 TEMPLATES = [
     {
@@ -89,10 +116,22 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# Static Files Configuration
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -104,60 +143,8 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Google OAuth Configuration
+# OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-
-REDIS_URL = os.getenv("REDIS_URL")
-
-if REDIS_URL:
-    redis = urlparse(REDIS_URL)
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [("redis", 6379)],
-                
-            },
-        },
-    }
-
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
-
-
-import urllib.parse
-
-REDIS_URL = os.getenv("REDIS_URL")
-
-if REDIS_URL:
-    parsed = urllib.parse.urlparse(REDIS_URL)
-
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [{
-                    "address": (parsed.hostname, parsed.port),
-                    "password": parsed.password,
-                    "ssl": parsed.scheme == "rediss",
-                }],
-            },
-        },
-    }
-else:
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
-        },
-    }
-# Simplest option - no compression, no manifest
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-    },
-}
