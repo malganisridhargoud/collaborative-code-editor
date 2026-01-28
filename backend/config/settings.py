@@ -7,7 +7,7 @@ import urllib.parse
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+ASGI_APPLICATION = 'config.asgi.application'
 # Security Settings
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-in-production')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
@@ -100,7 +100,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
-    "https://codesync-frontend.onrender.com",
+    "https://collaborative-code-editor-g1dz.vercel.app",
     "http://localhost:3000",
     "http://localhost:5173",
 ]
@@ -108,7 +108,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 # CSRF Configuration
 CSRF_TRUSTED_ORIGINS = [
-    "https://codesync-frontend.onrender.com",
+    "https://collaborative-code-editor-g1dz.vercel.app",
     "https://collaborative-code-editor-1-darj.onrender.com",
 ]
 
