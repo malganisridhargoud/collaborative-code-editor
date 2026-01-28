@@ -15,7 +15,6 @@ import {
   WifiOff,
   GitPullRequest,
   Zap,
-  Disc,
   Github,
 } from "lucide-react";
 
