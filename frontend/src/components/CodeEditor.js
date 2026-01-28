@@ -92,25 +92,23 @@ export default function CodeEditor() {
   const reconnectRef = useRef({ attempts: 0, timer: null });
   const outputEndRef = useRef(null);
 
-
   useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  const access = params.get("access");
-  const email = params.get("email");
+    const params = new URLSearchParams(window.location.search);
+    const access = params.get("access");
+    const emailParam = params.get("email");
 
-  if (access && email) {
-    localStorage.setItem("access", access);
-    localStorage.setItem("user", JSON.stringify({ email }));
+    if (access && emailParam) {
+      localStorage.setItem("access", access);
+      localStorage.setItem("user", JSON.stringify({ email: emailParam }));
 
-    axios.defaults.headers.common.Authorization =
-      `Bearer ${access}`;
+      axios.defaults.headers.common.Authorization = `Bearer ${access}`;
 
-    setUser({ email });
+      setUser({ email: emailParam });
 
-    // clean URL
-    window.history.replaceState({}, document.title, "/");
-  }
-}, []);
+      // clean URL
+      window.history.replaceState({}, document.title, "/");
+    }
+  }, []);
 
   // 🔐 Restore login on refresh
   useEffect(() => {
@@ -118,37 +116,23 @@ export default function CodeEditor() {
     const savedUser = localStorage.getItem("user");
 
     if (token && savedUser) {
-      axios.defaults.headers.common.Authorization =
-        `Bearer ${token}`;
+      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
 
       setUser(JSON.parse(savedUser));
     }
   }, []);
 
-  //github
-  useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  const access = params.get("access");
-  const email = params.get("email");
-
-  if (access && email) {
-    axios.defaults.headers.common["Authorization"] = `Bearer ${access}`;
-    setUser({ email });
-    window.history.replaceState({}, document.title, "/");
-  }
-}, []);
-  
   //logout
-   const logout = () => {
-  localStorage.removeItem("access");
-  localStorage.removeItem("user");
-  localStorage.removeItem("lastRoom");
+  const logout = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("user");
+    localStorage.removeItem("lastRoom");
 
-  delete axios.defaults.headers.common.Authorization;
+    delete axios.defaults.headers.common.Authorization;
 
-  setUser(null);
-  setJoined(false);
-};
+    setUser(null);
+    setJoined(false);
+  };
 
   /* ---------- WebSocket connection & handlers ---------- */
   useEffect(() => {
@@ -244,8 +228,12 @@ export default function CodeEditor() {
     };
 
     return () => {
+      // FIX: Copy ref value to variable before cleanup
+      const timer = reconnectRef.current.timer;
       try {
-        clearTimeout(reconnectRef.current.timer);
+        if (timer) {
+          clearTimeout(timer);
+        }
         ws.close();
       } catch (e) {}
     };
@@ -267,26 +255,22 @@ export default function CodeEditor() {
         setIsRegister(false);
         return;
       }
-      // on login, backend expected to return { access, user }
-      // axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.access}`;
-      // setUser(res.data.user || { email });
       localStorage.setItem("access", res.data.access);
-localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("user", JSON.stringify(res.data.user));
 
-axios.defaults.headers.common.Authorization =
-  `Bearer ${res.data.access}`;
+      axios.defaults.headers.common.Authorization = `Bearer ${res.data.access}`;
 
-setUser(res.data.user);
+      setUser(res.data.user);
     } catch (err) {
       console.error("auth error", err);
       alert(err.response?.data?.error || "Auth failed");
     }
   };
 
-      // giyhub login
-    const handleGitHubLogin = () => {
-  window.location.href = `${BACKEND_URL}/api/auth/github/login/`;
-};
+  // github login
+  const handleGitHubLogin = () => {
+    window.location.href = `${BACKEND_URL}/api/auth/github/login/`;
+  };
 
   /* ---------- small utilities ---------- */
   const copyRoom = async () => {
@@ -300,7 +284,9 @@ setUser(res.data.user);
   const sendCodeUpdate = (newCode) => {
     setCode(newCode);
     try {
-      wsRef.current?.send(JSON.stringify({ type: "code_update", code: newCode, language, user: user.email }));
+      wsRef.current?.send(
+        JSON.stringify({ type: "code_update", code: newCode, language, user: user.email })
+      );
     } catch (e) {}
   };
 
@@ -309,7 +295,9 @@ setUser(res.data.user);
     setLanguage(langKey);
     setCode(template);
     try {
-      wsRef.current?.send(JSON.stringify({ type: "language_change", language: langKey, code: template, user: user.email }));
+      wsRef.current?.send(
+        JSON.stringify({ type: "language_change", language: langKey, code: template, user: user.email })
+      );
     } catch (e) {}
   };
 
@@ -378,9 +366,8 @@ setUser(res.data.user);
             {isRegister ? "Create account" : "Sign in"}
           </button>
 
-          <button className = "icon-btn github" onClick = {handleGitHubLogin}
-          title = "Sign in with Github" > 
-          <Github size = {22}/>
+          <button className="icon-btn github" onClick={handleGitHubLogin} title="Sign in with Github">
+            <Github size={22} />
           </button>
 
           <div className="ce-row between">
@@ -403,10 +390,12 @@ setUser(res.data.user);
           </div>
 
           <button onClick={logout}>
-           <LogOut size={16} />
-            </button>
+            <LogOut size={16} />
+          </button>
 
-          <p className="ce-sub">Welcome, <b>{user.email}</b></p>
+          <p className="ce-sub">
+            Welcome, <b>{user.email}</b>
+          </p>
 
           <input
             className="ce-input"
@@ -462,11 +451,7 @@ setUser(res.data.user);
         </div>
 
         <div className="ce-center">
-          <select
-            className="ce-select"
-            value={language}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-          >
+          <select className="ce-select" value={language} onChange={(e) => handleLanguageChange(e.target.value)}>
             {Object.entries(LANGUAGE_TEMPLATES).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
@@ -492,14 +477,10 @@ setUser(res.data.user);
           <div className="user-chip">
             <div className="avatar">{initialsFromEmail(user.email)}</div>
             <div className="user-email">{user.email}</div>
-          
-                  <button
-                 className="icon-btn mobile-only"
-                 title="Show output & users"
-                onClick={() => setShowSide((v) => !v)}
-                  >
-                 <Terminal size={18} />
-                </button>
+
+            <button className="icon-btn mobile-only" title="Show output & users" onClick={() => setShowSide((v) => !v)}>
+              <Terminal size={18} />
+            </button>
 
             <button className="icon-btn danger" title="Leave room" onClick={handleLeave}>
               <LogOut size={16} />
@@ -567,15 +548,11 @@ setUser(res.data.user);
               <button className="ce-btn small" onClick={handleClearOutput}>
                 Clear
               </button>
-              <button
-                className="ce-btn small secondary"
-                onClick={() => navigator.clipboard.writeText(output || "")}
-              >
+              <button className="ce-btn small secondary" onClick={() => navigator.clipboard.writeText(output || "")}>
                 Copy
               </button>
             </div>
           </div>
-
         </aside>
       </main>
     </div>
