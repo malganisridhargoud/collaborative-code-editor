@@ -1,23 +1,28 @@
-version: "3.9"
-
 services:
   backend:
     build: ./backend
+    container_name: codesync-backend
     ports:
       - "8000:8000"
-    env_file:
-      - backend/.env
     depends_on:
       - redis
+    environment:
+      - DEBUG=1
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - REDIS_HOST=redis
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   frontend:
     build: ./frontend
+    container_name: codesync-frontend
     ports:
       - "3000:80"
     depends_on:
       - backend
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: codesync-redis
     ports:
       - "6379:6379"
