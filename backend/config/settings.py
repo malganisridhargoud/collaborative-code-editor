@@ -122,3 +122,31 @@ if REDIS_URL:
 
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
+
+
+import urllib.parse
+
+REDIS_URL = os.getenv("REDIS_URL")
+
+if REDIS_URL:
+    parsed = urllib.parse.urlparse(REDIS_URL)
+
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [{
+                    "address": (parsed.hostname, parsed.port),
+                    "password": parsed.password,
+                    "ssl": parsed.scheme == "rediss",
+                }],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+        },
+    }
