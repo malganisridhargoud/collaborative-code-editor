@@ -113,32 +113,30 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # Redis/Channels Configuration
-REDIS_URL = os.getenv("REDIS_URL")
+# Get Redis URL - ensure it's a proper string
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
 
-if REDIS_URL:
-    # Parse the Redis URL properly
-    parsed = urllib.parse.urlparse(REDIS_URL)
-    
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [{
-                    "address": (parsed.hostname, parsed.port or 6379),
-                    "password": parsed.password,
-                    "ssl": parsed.scheme == "rediss",
-                    "ssl_cert_reqs": None,  # For self-signed certificates
-                }],
-            },
+# Debug: Print what we're getting (temporary - remove after fixing)
+import sys
+print(f"DEBUG - REDIS_URL type: {type(REDIS_URL)}", file=sys.stderr)
+print(f"DEBUG - REDIS_URL value: {repr(REDIS_URL)}", file=sys.stderr)
+
+# Force it to be a string and strip whitespace
+if isinstance(REDIS_URL, (list, tuple)):
+    REDIS_URL = REDIS_URL[0] if REDIS_URL else 'redis://localhost:6379'
+REDIS_URL = str(REDIS_URL).strip()
+
+print(f"DEBUG - REDIS_URL after processing: {repr(REDIS_URL)}", file=sys.stderr)
+
+# Channel Layers Configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [REDIS_URL],  # Pass as a list with ONE string element
         },
-    }
-else:
-    # Fallback for local development
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels.layers.InMemoryChannelLayer"
-        },
-    }
+    },
+}
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
