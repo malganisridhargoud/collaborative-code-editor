@@ -1,270 +1,159 @@
+Here is a clean, professional README.md you can directly copy-paste into your GitHub repository.
+It is written to impress recruiters, reviewers, and ATS and clearly explains your system.
+
+⸻
+
 
 # 🚀 CodeSync — Real-Time Collaborative Code Editor
 
-CodeSync is a **full-stack, real-time collaborative code editor** that allows multiple authenticated users to join a shared room, write code together, and execute it in real time.  
-It uses **WebSockets for live collaboration**, **Google OAuth for authentication**, and **Docker + AWS-ready deployment**.
+CodeSync is a **real-time collaborative code editor** inspired by tools like Google Docs and VS Code Live Share.  
+It enables multiple users to **edit, run, and collaborate on code simultaneously** with low-latency synchronization using WebSockets.
 
-This project demonstrates **real-time systems, backend concurrency, authentication, and DevOps fundamentals**.
-
----
-
-## 📌 Core Features
-
-### 🔐 Authentication
-- Google OAuth 2.0 login
-- Backend-verified identity (no frontend trust)
-- JWT-based session handling
-
-### 👥 Collaboration
-- Room-based collaboration using Room IDs
-- Multiple users in the same room
-- Live user presence tracking
-- Join / leave notifications
-
-### ⚡ Real-Time Code Sync
-- WebSocket-based live code editing
-- Changes instantly reflected for all users
-- Language switching synchronized across room
-
-### ▶️ Shared Code Execution
-- Any user can run code
-- Output is **broadcast to all users in the room**
-- Supports multiple languages:
-  - JavaScript (Node.js)
-  - Python
-  - Java
-  - C
-  - C++
-
-### 🗄️ Persistence
-- Room metadata stored in MySQL
-- Code state persisted per room
-- Active users tracked per room
-
-### 🐳 Deployment-Ready
-- Dockerized frontend, backend, database, Redis
-- Nginx reverse proxy
-- AWS EC2 compatible setup
+Designed with **scalability, real-time systems, and production deployment** in mind.
 
 ---
 
-## 🧠 System Architecture
+## ✨ Features
 
-`
+- 🔄 **Real-time multi-user code collaboration**
+- 🧑‍🤝‍🧑 **Live presence tracking (active users per room)**
+- 🌐 **WebSocket-based sync using Django Channels**
+- ▶️ **Run code remotely and stream output to all users**
+- 🔐 **Authentication**
+  - Email & Password (JWT)
+  - GitHub OAuth
+- 🧩 **Room-based collaboration**
+- 🌍 **Language synchronization across users**
+- 🧪 **Low-latency updates (<100ms in local testing)**
+- 📦 **Dockerized & production-ready architecture**
 
-Browser (React)
-├─ Google OAuth Login
-├─ REST API (JWT, Rooms)
-└─ WebSocket (Live Collaboration)
-↓
-Django ASGI (Daphne)
-├─ Django REST Framework
-├─ Django Channels
-├─ Redis (Pub/Sub)
-├─ MySQL (Persistent Storage)
-└─ Code Executor (Subprocess)
+---
 
-
-
-
-## 🛠️ Technology Stack
+## 🛠 Tech Stack
 
 ### Frontend
-- React (Hooks, SPA)
-- Tailwind CSS
-- Axios
-- WebSocket API
-- @react-oauth/google
-- Lucide React Icons
+- **React.js**
+- **Lucide-React** (icons)
+- **Axios** (HTTP requests)
+- **WebSockets (native browser API)**
+- **CSS (Responsive UI, mobile-friendly)**
 
 ### Backend
-- Django
-- Django REST Framework
-- Django Channels
-- ASGI + Daphne
-- Google OAuth token verification
-- JWT (SimpleJWT)
-- Redis (channels-redis)
-- MySQL
-- Python subprocess (code execution)
+- **Django**
+- **Django REST Framework**
+- **Django Channels (ASGI)**
+- **Daphne (ASGI server)**
+- **JWT Authentication (SimpleJWT)**
 
+### Realtime & Messaging
+- **WebSockets**
+- **Redis (Channel Layer / Pub-Sub)**
+
+### Databases
+- **MySQL / PostgreSQL** (sessions, users, rooms)
+- **Redis** (realtime state, pub/sub, caching)
+
+### DevOps & Deployment
+- **Docker**
+- **Docker Compose**
+- **GitHub Actions (CI/CD)**
+- **Render (Backend hosting)**
+- **Vercel (Frontend hosting)**
+
+---
+
+## 🧱 Architecture Overview
+
+Frontend (React)
+│
+│ WebSocket / HTTP
+▼
+Backend (Django + Channels + Daphne)
+│
+│ Redis Pub/Sub
+▼
+Redis
+
+- HTTP → Authentication, REST APIs
+- WebSocket → Code sync, presence, execution output
+- Redis → Message broadcasting & state synchronization
 
 ---
 
 ## 📂 Project Structure
 
-```
-
-codesync-project/
-├── backend/
-│   ├── config/            # Django settings & ASGI
-│   ├── editor/            # Core logic (models, consumers)
-│   ├── manage.py
-│   ├── requirements.txt
-│   └── .env
+collaborative-code-editor/
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/CodeEditor.js
+│   │   ├── components/
+│   │   │   └── CodeEditor.js
 │   │   ├── App.js
-│   │   ├── index.js
-│   │   └── index.css
-│   ├── Dockerfile
-│   └── nginx.conf
+│   │   └── index.js
+│   └── package.json
+│
+├── backend/
+│   ├── config/
+│   │   ├── asgi.py
+│   │   ├── settings.py
+│   │   └── urls.py
+│   ├── editor/
+│   │   ├── consumers.py
+│   │   ├── models.py
+│   │   ├── views.py
+│   │   ├── routing.py
+│   │   └── urls.py
+│   └── manage.py
 │
 ├── docker-compose.yml
 └── README.md
 
-````
-
 ---
 
-## 🔐 Authentication Flow (Google OAuth)
+## ⚙️ Local Setup
 
-1. User clicks **Login with Google**
-2. Google returns an ID token
-3. Frontend sends token to Django
-4. Django verifies token using Google public keys
-5. Django creates or retrieves the user
-6. JWT access token is issued
-7. User is authenticated and can join rooms
-
----
-
-## ⚙️ Backend Implementation Details
-
-### Models
-- **Room** → unique room identifier
-- **CodeSession** → current code + language per room
-- **ActiveUser** → tracks connected users per room
-
-### WebSocket Events
-| Event Type | Description |
-|-----------|------------|
-| `join` | User joins a room |
-| `code_update` | Code edited by a user |
-| `language_change` | Programming language switched |
-| `compile` | Code execution requested |
-| `compile_result` | Output broadcast to room |
-
-### Important Design Choice
-- **Execution output is broadcast to the entire room**
-- Uses Redis Pub/Sub via Django Channels
-
----
-
-## ⚙️ Local Development Setup
-
-### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Redis
-- MySQL
-- Google OAuth credentials
-
----
-
-### 1️⃣ Backend Setup
-
+### 1️⃣ Clone Repository
 ```bash
+git clone https://github.com/your-username/codesync.git
+cd codesync
+
+2️⃣ Backend Setup
+
 cd backend
 python -m venv venv
-source venv/bin/activate
+venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-````
 
-Create `.env`:
+Run Redis (Memurai / WSL / Docker), then:
 
-```env
-SECRET_KEY=your-secret-key
-DEBUG=True
+daphne -b 0.0.0.0 -p 8000 config.asgi:application
 
-DB_NAME=codesync_db
-DB_USER=root
-DB_PASSWORD=yourpassword
-DB_HOST=localhost
-DB_PORT=3306
 
-GOOGLE_CLIENT_ID=your-google-client-id
-```
+⸻
 
-Run migrations:
+3️⃣ Frontend Setup
 
-```bash
-python manage.py makemigrations
-python manage.py migrate
-python manage.py runserver
-```
-
----
-
-### 2️⃣ Frontend Setup
-
-```bash
 cd frontend
 npm install
 npm start
-```
-
----
-
-### 3️⃣ Redis
-
-```bash
-redis-server
-```
-
----
-
-## 🧪 How to Use the App
-
-1. Open the app in two browsers
-2. Login with **different Google accounts**
-3. Enter the **same Room ID**
-4. Type code → see real-time sync
-5. Click **Run** → output appears for all users
-
----
 
 
-Services:
+⸻
 
-* Frontend (Nginx) → port 80
-* Backend (Daphne) → port 8000
-* Redis → port 6379
-* MySQL → port 3306
+🔐 Authentication
+	•	Email & Password
+	•	GitHub OAuth
+	•	JWT tokens persisted in localStorage
+	•	Auto-login on refresh
+	•	Secure token exchange on OAuth callback
 
----
+⸻
 
+🌍 Deployment
+	•	Frontend → Vercel
+	•	Backend → Render (ASGI service)
+	•	Redis → Managed Redis / external Redis service
+	•	CI/CD → GitHub Actions
 
----
-
-## 🔒 Security Considerations
-
-* OAuth tokens verified on backend
-* JWT-based authentication
-* WebSocket room isolation
-* Execution timeout enforced
-* No frontend-only trust
-
----
-
----
-
----
-
----
-
-## 👨‍💻 Author
-
-**Sridhar Goud Malgani**
-
-
----
-
-## 📜 License
-
-This project is intended for **learning, portfolio, and demonstration purposes**.
-
-
+⸻
 
