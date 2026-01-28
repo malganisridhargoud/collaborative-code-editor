@@ -151,4 +151,12 @@ else:
             "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
         },
     }
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Simplest option - no compression, no manifest
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
