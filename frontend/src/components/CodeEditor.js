@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 /* Backend URL */
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://collaborative-code-editor-1-darj.onrender.com";
 
 /* Language templates — removed Go, Rust, Ruby, PHP, Kotlin */
 const LANGUAGE_TEMPLATES = {
