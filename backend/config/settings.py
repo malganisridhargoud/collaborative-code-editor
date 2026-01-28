@@ -8,10 +8,12 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Security Settings
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-in-production')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
+# Application definition
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
@@ -42,6 +44,7 @@ ROOT_URLCONF = 'config.urls'
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
+# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -49,45 +52,7 @@ DATABASES = {
     }
 }
 
-# Redis/Channels Configuration
-REDIS_URL = os.getenv("REDIS_URL")
-
-if REDIS_URL:
-    parsed = urllib.parse.urlparse(REDIS_URL)
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [{
-                    "address": (parsed.hostname, parsed.port or 6379),
-                    "password": parsed.password,
-                    "ssl": parsed.scheme == "rediss",
-                }],
-            },
-        },
-    }
-else:
-    # Fallback for local development
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels.layers.InMemoryChannelLayer"
-        },
-    }
-
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "https://codesync-frontend.onrender.com",
-    "http://localhost:3000",
-    "http://localhost:5173",
-]
-CORS_ALLOW_CREDENTIALS = True
-
-# CSRF Configuration
-CSRF_TRUSTED_ORIGINS = [
-    "https://codesync-frontend.onrender.com",
-    "https://collaborative-code-editor-1-darj.onrender.com",
-]
-
+# Templates
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -104,6 +69,7 @@ TEMPLATES = [
     },
 ]
 
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -111,6 +77,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
@@ -131,6 +98,48 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "https://codesync-frontend.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = [
+    "https://codesync-frontend.onrender.com",
+    "https://collaborative-code-editor-1-darj.onrender.com",
+]
+
+# Redis/Channels Configuration
+REDIS_URL = os.getenv("REDIS_URL")
+
+if REDIS_URL:
+    # Parse the Redis URL properly
+    parsed = urllib.parse.urlparse(REDIS_URL)
+    
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [{
+                    "address": (parsed.hostname, parsed.port or 6379),
+                    "password": parsed.password,
+                    "ssl": parsed.scheme == "rediss",
+                    "ssl_cert_reqs": None,  # For self-signed certificates
+                }],
+            },
+        },
+    }
+else:
+    # Fallback for local development
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        },
+    }
+
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -148,3 +157,6 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
+
+# Frontend URL
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
