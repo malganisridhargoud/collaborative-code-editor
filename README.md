@@ -1,5 +1,5 @@
 
-# 🚀 CodeSync — Real-Time Collaborative Code Editor
+#  CodeCollabSync — Real-Time Collaborative Code Editor
 
 CodeSync is a **real-time collaborative code editor** inspired by tools like Google Docs and VS Code Live Share.  
 It enables multiple users to **edit, run, and collaborate on code simultaneously** with low-latency synchronization using WebSockets.
