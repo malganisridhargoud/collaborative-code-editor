@@ -1,8 +1,3 @@
-Here is a clean, professional README.md you can directly copy-paste into your GitHub repository.
-It is written to impress recruiters, reviewers, and ATS and clearly explains your system.
-
-⸻
-
 
 # 🚀 CodeSync — Real-Time Collaborative Code Editor
 
