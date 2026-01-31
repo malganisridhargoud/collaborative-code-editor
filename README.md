@@ -73,38 +73,6 @@ Redis
 - WebSocket → Code sync, presence, execution output
 - Redis → Message broadcasting & state synchronization
 
----
-
-## 📂 Project Structure
-
-collaborative-code-editor/
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── CodeEditor.js
-│   │   ├── App.js
-│   │   └── index.js
-│   └── package.json
-│
-├── backend/
-│   ├── config/
-│   │   ├── asgi.py
-│   │   ├── settings.py
-│   │   └── urls.py
-│   ├── editor/
-│   │   ├── consumers.py
-│   │   ├── models.py
-│   │   ├── views.py
-│   │   ├── routing.py
-│   │   └── urls.py
-│   └── manage.py
-│
-├── docker-compose.yml
-└── README.md
-
----
-
 ## ⚙️ Local Setup
 
 ### 1️⃣ Clone Repository
