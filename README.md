@@ -16,11 +16,11 @@ Designed with **scalability, real-time systems, and production deployment** in m
 - ▶️ **Run code remotely and stream output to all users**
 - 🔐 **Authentication**
   - Email & Password (JWT)
-  - GitHub OAuth
+  - Google OAuth
 - 🧩 **Room-based collaboration**
 - 🌍 **Language synchronization across users**
 - 🧪 **Low-latency updates (<100ms in local testing)**
-- 📦 **Dockerized & production-ready architecture**
+
 
 ---
 
@@ -50,8 +50,6 @@ Designed with **scalability, real-time systems, and production deployment** in m
 
 ### DevOps & Deployment
 - **Docker**
-- **Docker Compose**
-- **GitHub Actions (CI/CD)**
 - **Render (Backend hosting)**
 - **Vercel (Frontend hosting)**
 
