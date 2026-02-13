@@ -398,7 +398,7 @@ export default function CodeEditor() {
             <button className="link" onClick={() => setIsRegister(!isRegister)}>
               {isRegister ? "Already have an account?" : "New user? Register"}
             </button>
-            <small className="muted">Authorize</small>
+            <small className="muted"></small>
           </div>
         </div>
       </div>
