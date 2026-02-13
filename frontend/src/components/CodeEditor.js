@@ -267,9 +267,10 @@ export default function CodeEditor() {
     }
   };
 
-  // github login
+  // GitHub login
   const handleGitHubLogin = () => {
-    window.location.href = `${BACKEND_URL}/api/auth/github/login/`;
+    const next = encodeURIComponent(window.location.origin);
+    window.location.href = `${BACKEND_URL}/api/auth/github/login/?next=${next}`;
   };
 
   /* ---------- small utilities ---------- */
