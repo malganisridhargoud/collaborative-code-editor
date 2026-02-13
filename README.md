@@ -103,7 +103,7 @@ npm start
 
 🔐 Authentication
 	•	Email & Password
-	•	GitHub OAuth
+	•	google OAuth
 	•	JWT tokens persisted in localStorage
 	•	Auto-login on refresh
 	•	Secure token exchange on OAuth callback
@@ -114,7 +114,7 @@ npm start
 	•	Frontend → Vercel
 	•	Backend → Render (ASGI service)
 	•	Redis → Managed Redis / external Redis service
-	•	CI/CD → GitHub Actions
+	
 
 ⸻
 
