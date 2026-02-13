@@ -1,6 +1,7 @@
 // frontend/src/components/CodeEditor.js
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { GoogleLogin } from "@react-oauth/google";
 import "./CodeEditor.css";
 
 import {
@@ -15,7 +16,6 @@ import {
   WifiOff,
   GitPullRequest,
   Zap,
-  Github,
 } from "lucide-react";
 
 /* Backend URL */
@@ -137,6 +137,7 @@ export default function CodeEditor() {
   /* ---------- WebSocket connection & handlers ---------- */
   useEffect(() => {
     if (!joined || !user || !roomId) return;
+    const reconnectState = reconnectRef.current;
 
     const protocol = BACKEND_URL.startsWith("https") ? "wss" : "ws";
     const host = BACKEND_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -153,7 +154,7 @@ export default function CodeEditor() {
     }
 
     ws.onopen = () => {
-      reconnectRef.current.attempts = 0;
+      reconnectState.attempts = 0;
       setConnected(true);
       setConnectionHint("Connected");
       // join with stable identifier
@@ -213,10 +214,10 @@ export default function CodeEditor() {
     ws.onclose = () => {
       setConnected(false);
       setConnectionHint("Disconnected");
-      reconnectRef.current.attempts += 1;
-      const a = reconnectRef.current.attempts;
+      reconnectState.attempts += 1;
+      const a = reconnectState.attempts;
       const delay = Math.min(1000 * Math.pow(2, a), 10000);
-      reconnectRef.current.timer = setTimeout(() => {
+      reconnectState.timer = setTimeout(() => {
         setReconnectTick((t) => t + 1); // trigger reconnect effect
       }, delay);
     };
@@ -228,8 +229,7 @@ export default function CodeEditor() {
     };
 
     return () => {
-      // FIX: Copy ref value to variable before cleanup
-      const timer = reconnectRef.current.timer;
+      const timer = reconnectState.timer;
       try {
         if (timer) {
           clearTimeout(timer);
@@ -267,10 +267,28 @@ export default function CodeEditor() {
     }
   };
 
-  // GitHub login
-  const handleGitHubLogin = () => {
-    const next = encodeURIComponent(window.location.origin);
-    window.location.href = `${BACKEND_URL}/api/auth/github/login/?next=${next}`;
+  // Google login
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const token = credentialResponse?.credential;
+    if (!token) {
+      alert("Google token missing");
+      return;
+    }
+
+    try {
+      const res = await axios.post(`${BACKEND_URL}/api/auth/google/`, { token });
+      localStorage.setItem("access", res.data.access);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      axios.defaults.headers.common.Authorization = `Bearer ${res.data.access}`;
+      setUser(res.data.user);
+    } catch (err) {
+      console.error("google auth error", err);
+      alert(err.response?.data?.error || "Google login failed");
+    }
+  };
+
+  const handleGoogleError = () => {
+    alert("Google login failed");
   };
 
   /* ---------- small utilities ---------- */
@@ -367,9 +385,14 @@ export default function CodeEditor() {
             {isRegister ? "Create account" : "Sign in"}
           </button>
 
-          <button className="icon-btn github" onClick={handleGitHubLogin} title="Sign in with Github">
-            <Github size={22} />
-          </button>
+          <div className="google-login-wrap">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              text="signin_with"
+              shape="pill"
+            />
+          </div>
 
           <div className="ce-row between">
             <button className="link" onClick={() => setIsRegister(!isRegister)}>

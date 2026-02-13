@@ -4,6 +4,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 import os
 import secrets
@@ -43,6 +45,40 @@ def login(request):
     if not user:
         return Response({"error": "Invalid credentials"}, status=401)
 
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        "access": str(refresh.access_token),
+        "user": {"email": user.email},
+    })
+
+
+# =========================
+# Google OAuth
+# =========================
+
+@api_view(["POST"])
+def google_login(request):
+    token = request.data.get("token")
+    if not token:
+        return Response({"error": "Missing Google token"}, status=400)
+
+    if not settings.GOOGLE_CLIENT_ID:
+        return Response({"error": "Google OAuth is not configured"}, status=500)
+
+    try:
+        id_info = id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        return Response({"error": "Invalid Google token"}, status=401)
+
+    email = id_info.get("email")
+    if not email:
+        return Response({"error": "Google account email not available"}, status=400)
+
+    user, _ = User.objects.get_or_create(username=email, defaults={"email": email})
     refresh = RefreshToken.for_user(user)
     return Response({
         "access": str(refresh.access_token),

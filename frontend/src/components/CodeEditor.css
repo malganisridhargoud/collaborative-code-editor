@@ -76,6 +76,11 @@ html,body,#root { height: 100%; margin: 0; font-family: Inter, system-ui, Arial,
 .icon-btn.github:hover {
   background: #0f172a;
 }
+.google-login-wrap {
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+}
 
 
 /* =========================
