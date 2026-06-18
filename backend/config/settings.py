@@ -47,8 +47,16 @@ ASGI_APPLICATION = 'config.asgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME', 'codesync'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
+        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
     }
 }
 
@@ -105,6 +113,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
 CORS_ALLOW_CREDENTIALS = True
+# Ensure auth/register/login works when browsers do preflight requests (OPTIONS)
+CORS_ALLOW_HEADERS = [
+    "authorization",
+    "content-type",
+    "x-csrftoken",
+]
+CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+
 
 # CSRF Configuration
 CSRF_TRUSTED_ORIGINS = [
@@ -116,27 +132,29 @@ CSRF_TRUSTED_ORIGINS = [
 # Get Redis URL - ensure it's a proper string
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
 
-# Debug: Print what we're getting (temporary - remove after fixing)
-import sys
-print(f"DEBUG - REDIS_URL type: {type(REDIS_URL)}", file=sys.stderr)
-print(f"DEBUG - REDIS_URL value: {repr(REDIS_URL)}", file=sys.stderr)
-
 # Force it to be a string and strip whitespace
 if isinstance(REDIS_URL, (list, tuple)):
     REDIS_URL = REDIS_URL[0] if REDIS_URL else 'redis://localhost:6379'
 REDIS_URL = str(REDIS_URL).strip()
 
-print(f"DEBUG - REDIS_URL after processing: {repr(REDIS_URL)}", file=sys.stderr)
-
 # Channel Layers Configuration
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [REDIS_URL],  # Pass as a list with ONE string element
+# Use an in-memory layer during development (DEBUG=True) to avoid a Redis
+# dependency. In production (DEBUG=False) use Redis as configured by REDIS_URL.
+if DEBUG:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
         },
-    },
-}
+    }
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
@@ -160,3 +178,25 @@ GITHUB_REDIRECT_URI = os.getenv(
     "GITHUB_REDIRECT_URI",
     "",
 )
+
+# Basic logging setup so consumer INFO/DEBUG messages show in console
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'editor': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}

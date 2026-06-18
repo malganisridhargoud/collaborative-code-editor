@@ -9,13 +9,19 @@ django_asgi_app = get_asgi_application()
 
 # NOW import everything else AFTER Django is initialized
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
 import editor.routing
 
 # Configure the application
+# WebSockets in this app do not require cookie-based auth for basic room sync.
+# Using AuthMiddlewareStack here can cause disconnects if session/cookies middleware
+# isn't configured/available in some deployments.
+from channels.routing import ProtocolTypeRouter, URLRouter
+
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": AuthMiddlewareStack(
-        URLRouter(editor.routing.websocket_urlpatterns)
-    ),
+    # This app doesn't rely on cookie/session auth for room sync.
+    # Avoid importing CookieSessionMiddleware (not available in older/newer Channels versions).
+    "websocket": URLRouter(editor.routing.websocket_urlpatterns),
 })
+
+

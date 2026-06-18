@@ -1,6 +1,6 @@
-# CodeSync - Real-Time Collaborative Code Editor
+# CoDe KnOt - Real-Time Collaborative Code Editor
 
-CodeSync is a room-based collaborative coding app where multiple users can edit code together in real time, run supported languages on the server, and view shared output instantly.
+CoDe KnOt is a room-based collaborative coding app where multiple users can edit code together in real time, run supported languages on the server, and view shared output instantly.
 
 ## Tech Stack (Current)
 
@@ -9,7 +9,7 @@ CodeSync is a room-based collaborative coding app where multiple users can edit 
 - Axios
 - Lucide React (icons)
 - Google OAuth client (`@react-oauth/google`)
-- Plain CSS (responsive layout)
+- Bootstrap 5 + custom CSS (responsive layout)
 - Native WebSocket API
 
 ### Backend
@@ -25,13 +25,10 @@ CodeSync is a room-based collaborative coding app where multiple users can edit 
 - Redis channel layer (`channels-redis`)
 
 ### Persistence
-- SQLite (currently configured default DB in `backend/config/settings.py`)
-- Django models for `Room`, `CodeSession`, `ActiveUser`
+- Django auth/session tables for user login and JWT issuance
+- MySQL for room state, shared code, active users, and auth/session data
 
-### Runtime / DevOps
-- Docker 
-- Nginx container for serving frontend build
-- Python 3.12 backend image
+
 
 ## Features Implemented (Step by Step)
 
@@ -102,7 +99,22 @@ python manage.py migrate
 daphne -b 0.0.0.0 -p 8000 config.asgi:application
 ```
 
-### 3. Redis
+### 3. MySQL
+Create a MySQL database, then set these backend environment variables before starting Django:
+```env
+DB_NAME=codesync
+DB_USER=root
+DB_PASSWORD=your-password
+DB_HOST=127.0.0.1
+DB_PORT=3306
+```
+
+Then run the Django migrations against MySQL:
+```bash
+python manage.py migrate
+```
+
+### 4. Redis
 Run Redis locally (or via Docker) and make sure `REDIS_URL` points to it.
 
 Example local default:
@@ -110,7 +122,7 @@ Example local default:
 REDIS_URL=redis://localhost:6379
 ```
 
-### 4. Frontend
+### 5. Frontend
 ```bash
 cd frontend
 npm install
@@ -122,6 +134,82 @@ Optional env:
 REACT_APP_BACKEND_URL=http://localhost:8000
 REACT_APP_GOOGLE_CLIENT_ID=<google-client-id>
 ```
+
+For local development, copy `frontend/.env.example` to `frontend/.env` and fill in your Google client ID.
+
+## Styling & Theme
+
+- The frontend uses Bootstrap 5 for base styling and layout, with lightweight custom CSS on top.
+- Theme variables and the dark-mode overrides live in `frontend/src/index.css`.
+- A theme toggle is available in the app header; the choice is persisted in `localStorage` under the key `theme` (values: `light` or `dark`).
+- To customize colors, edit the CSS variables at the top of `frontend/src/index.css`.
+
+
+### Google Login Setup
+
+If you see `Access blocked: Authorization Error`, configure the Google OAuth client in Google Cloud Console with the correct authorized JavaScript origins for the frontend you are using.
+
+For local development, add:
+```text
+http://localhost:3000
+http://127.0.0.1:3000
+```
+
+For the deployed frontend, add the production origin shown in your browser address bar.
+
+The Google OAuth client ID used by the frontend must also match the backend `GOOGLE_CLIENT_ID` value in `backend/config/settings.py`.
+
+### MySQL Notes
+
+MySQL is now the single persistence layer for the backend. Room state, active users, shared code, and Django auth data all live in the same database.
+
+## Production Deployment & Scaling (100+ Users)
+
+For scaling to support 100+ concurrent users, deploy with:
+
+### 1. Cloud MySQL Database
+- Use AWS RDS, Google Cloud SQL, or Azure Database for MySQL
+- Update `backend/.env`:
+  ```env
+  DB_HOST=your-cloud-db-host
+  DB_USER=your-db-user
+  DB_PASSWORD=your-secure-password
+  ```
+
+### 2. Cloud Redis Service (Required for Multi-Process Scaling)
+Deploy with a managed Redis service (Redis Cloud, AWS ElastiCache, Heroku Redis, etc.):
+- Update `backend/.env`:
+  ```env
+  DEBUG=False
+  REDIS_URL=redis://username:password@your-redis-host:6379/0
+  ```
+
+### 3. Multi-Process Application Server
+Replace local `runserver` with production ASGI server:
+```bash
+gunicorn --workers 4 --worker-class=uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 config.asgi:application
+```
+Or use Daphne with a load balancer for multiple instances.
+
+### 4. WebSocket Load Balancing
+- Use a load balancer (nginx, HAProxy, or cloud provider) with sticky sessions
+- CloudFlare, AWS ALB, or Google Cloud Load Balancer
+- Ensure `session_affinity` is enabled so users stay on the same server for WebSocket connections
+
+### Architecture for 100+ Users:
+```
+Frontend (React SPA)
+    ↓
+Load Balancer (sticky sessions)
+    ↓
+Multiple Django App Servers
+    ↓
+Shared Redis (Channels Layer)
+    ↓
+Cloud MySQL DB
+```
+
+With this setup, each server can handle ~50-100 WebSocket connections, so 2-3 app server instances support 100+ users.
 
 
 

@@ -15,6 +15,9 @@ from django.http import JsonResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import redirect
 from urllib.parse import urlencode
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # =========================
@@ -66,13 +69,21 @@ def google_login(request):
         return Response({"error": "Google OAuth is not configured"}, status=500)
 
     try:
+        # Verify the ID token and ensure it was issued for our client ID.
         id_info = id_token.verify_oauth2_token(
             token,
             google_requests.Request(),
             settings.GOOGLE_CLIENT_ID,
         )
+        logger.debug("Google token verified: %s", {k: id_info.get(k) for k in ("email", "aud", "iss")})
     except ValueError:
+        # Token verification failed (invalid, expired, wrong audience, etc.)
+        logger.exception("Google token verification failed")
         return Response({"error": "Invalid Google token"}, status=401)
+    except Exception as exc:
+        # Catch-all to help debugging unexpected failures
+        logger.exception("Unexpected error verifying Google token")
+        return Response({"error": "Google token verification error", "detail": str(exc)}, status=500)
 
     email = id_info.get("email")
     if not email:

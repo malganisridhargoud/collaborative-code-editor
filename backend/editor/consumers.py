@@ -1,36 +1,67 @@
 import json
 import asyncio
+import logging
+
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+
 from .models import Room, CodeSession, ActiveUser
 from .code_executor import CodeExecutor
 
+logger = logging.getLogger(__name__)
+logger = logging.getLogger('editor')
+
 class CodeEditorConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.room_id = self.scope['url_route']['kwargs']['room_id']
-        self.room_group_name = f'code_{self.room_id}'
+        self.room_id = self.scope.get('url_route', {}).get('kwargs', {}).get('room_id')
+        self.room_group_name = f'code_{self.room_id}' if self.room_id else None
         self.username = None
 
-        # Join channel layer group for room
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
+        try:
+            logger.info("WebSocket connect requested: room=%s channel=%s", self.room_id, getattr(self, 'channel_name', None))
+            # Join channel layer group for room
+            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+            await self.accept()
+            logger.info("WebSocket accepted: room=%s channel=%s group=%s", self.room_id, self.channel_name, self.room_group_name)
+        except Exception:
+            logger.exception("Error during WebSocket connect for room %s", self.room_id)
+            await self.close()
+            # Reject connection
+            await self.close()
 
     async def disconnect(self, close_code):
-        if self.username:
-            await self.remove_active_user()
-            active_users = await self.get_active_users()
+        logger.info(
+            "WebSocket disconnect: room=%s channel=%s close_code=%s username=%s", 
+            getattr(self, 'room_id', None), 
+            getattr(self, 'channel_name', None), 
+            close_code, 
+            getattr(self, 'username', None)
+        )
 
-            # Notify room that user left
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'user_left',           # -> user_left()
-                    'username': self.username,
-                    'users': active_users,
-                }
-            )
+        # Never let disconnect path crash the consumer; that can look like random disconnect loops.
+        try:
+            if getattr(self, 'username', None) and self.room_group_name:
+                await self.remove_active_user()
+                active_users = await self.get_active_users()
 
-        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+                # Notify room that user left
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'user_left',
+                        'username': self.username,
+                        'users': active_users,
+                    },
+                )
+        except Exception:
+            logger.exception("Error during disconnect cleanup for user %s in room %s", self.username, getattr(self, 'room_id', None))
+
+        try:
+            if self.room_group_name:
+                await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        except Exception:
+            logger.exception("Error discarding channel from group: %s %s", getattr(self, 'room_group_name', None), getattr(self, 'channel_name', None))
+
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -48,7 +79,7 @@ class CodeEditorConsumer(AsyncWebsocketConsumer):
             await self.handle_clear_output(data)
         else:
             # unknown message type - ignore
-            pass
+            logger.debug("Unknown message type received: %s", message_type)
 
     # ----------------------------
     # Handlers for incoming client events
@@ -123,6 +154,7 @@ class CodeEditorConsumer(AsyncWebsocketConsumer):
             # execute on thread pool to avoid blocking event loop
             output = await asyncio.to_thread(executor.execute, code, language)
         except Exception as e:
+            logger.exception("Error executing code for user %s", username)
             output = f"Execution Error: {str(e)}"
 
         # BROADCAST compile result to whole room so everyone sees output
@@ -235,7 +267,7 @@ class CodeEditorConsumer(AsyncWebsocketConsumer):
         session, _ = CodeSession.objects.get_or_create(
             room=room,
             defaults={
-                'code': '// Welcome to CodeSync! Start coding together.',
+                'code': '// Welcome to CoDe KnOt! Start coding together.',
                 'language': 'javascript'
             }
         )
