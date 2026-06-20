@@ -19,6 +19,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from .models import Room
+from .serializers import RoomSerializer
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
+
 
 # =========================
 # Email / Password Auth
@@ -235,3 +240,14 @@ def github_callback(request):
     params = urlencode({"access": str(access), "email": user.email})
     frontend_url = request.session.pop("oauth_frontend_url", settings.FRONTEND_URL).rstrip("/")
     return redirect(f"{frontend_url}/?{params}")
+
+
+@api_view(["GET"])
+def list_rooms(request):
+    """Return a list of persistent rooms with metadata and session info.
+
+    Public endpoint — adjust permission decorators if you want to restrict access.
+    """
+    rooms = Room.objects.all().order_by('-created_at')
+    serializer = RoomSerializer(rooms, many=True)
+    return Response(serializer.data)

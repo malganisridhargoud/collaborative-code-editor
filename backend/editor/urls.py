@@ -8,6 +8,7 @@ urlpatterns = [
     path('auth/google/', google_login),
     path("auth/github/login/", views.github_login),
     path("auth/github/callback/", views.github_callback),
+    path('rooms/', views.list_rooms),
 
 ]
 
