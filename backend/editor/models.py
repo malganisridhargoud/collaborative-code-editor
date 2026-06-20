@@ -3,6 +3,8 @@ from django.db import models
 class Room(models.Model):
     room_id = models.CharField(max_length=100, unique=True, db_index=True)
     name = models.CharField(max_length=255, blank=True)
+    owner_username = models.CharField(max_length=150, blank=True, null=True)
+    locked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

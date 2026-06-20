@@ -18,7 +18,7 @@ class RoomSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Room
-        fields = ['id', 'room_id', 'name', 'created_at', 'active_users', 'session', 'user_count']
+        fields = ['id', 'room_id', 'name', 'owner_username', 'locked', 'created_at', 'active_users', 'session', 'user_count']
     
     def get_user_count(self, obj):
         return obj.active_users.count()

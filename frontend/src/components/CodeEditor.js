@@ -262,6 +262,8 @@ export default function CodeEditor() {
   const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(LANGUAGES.javascript.defaultCode);
   const [usersInRoom, setUsersInRoom] = useState([]);
+  const [roomOwner, setRoomOwner] = useState(null);
+  const [roomLocked, setRoomLocked] = useState(false);
   const [terminalOutput, setTerminalOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -301,10 +303,29 @@ export default function CodeEditor() {
           if (data.code) setCode(data.code);
           if (data.language) setLanguage(data.language);
           if (data.users) setUsersInRoom(data.users);
+          if (data.owner) setRoomOwner(data.owner);
+          if (typeof data.locked !== 'undefined') setRoomLocked(!!data.locked);
           break;
         case "user_joined":
         case "user_left":
           if (data.users) setUsersInRoom(data.users);
+          break;
+        case "user_kicked":
+          if (data.users) setUsersInRoom(data.users);
+          if (data.target === user.email) {
+            alert("You were kicked from the room");
+            setIsInRoom(false);
+          }
+          break;
+        case "room_locked":
+          setRoomLocked(!!data.locked);
+          break;
+        case "room_deleted":
+          alert("Room was deleted by the owner");
+          setIsInRoom(false);
+          break;
+        case "cursor_move":
+          // TODO: render remote cursors; for now we ignore
           break;
         case "code_update":
           if (data.user !== user.email) setCode(data.code);
@@ -335,6 +356,11 @@ export default function CodeEditor() {
   const handleCodeChange = (newCode) => {
     setCode(newCode);
     wsRef.current?.send(JSON.stringify({ type: "code_update", code: newCode, language, user: user.email }));
+  };
+
+  const handleCursorChange = (e) => {
+    const pos = e.target.selectionStart;
+    wsRef.current?.send(JSON.stringify({ type: 'cursor_move', cursor: { pos }, user: user.email }));
   };
 
   const handleLanguageChange = (newLanguage) => {
@@ -392,6 +418,8 @@ export default function CodeEditor() {
             style={{ resize: "none", outline: "none" }}
             value={code} 
             onChange={(e) => handleCodeChange(e.target.value)} 
+            onKeyUp={handleCursorChange}
+            onClick={handleCursorChange}
             spellCheck={false}
             placeholder="Start typing your code here..."
           />
@@ -404,6 +432,21 @@ export default function CodeEditor() {
             <h6 className="fw-bold text-muted d-flex align-items-center mb-3">
               <Users size={16} className="me-2" /> Active Collaborators
             </h6>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <div className="small text-muted">Owner: {roomOwner || "(none)"}</div>
+              {roomOwner === user.email && (
+                <div className="d-flex gap-2">
+                  <button className={`btn btn-sm ${roomLocked ? 'btn-warning' : 'btn-outline-secondary'}`} onClick={() => {
+                    wsRef.current?.send(JSON.stringify({ type: 'lock_room', lock: !roomLocked, user: user.email }));
+                  }}>{roomLocked ? 'Unlock' : 'Lock'}</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => {
+                    if (!window.confirm('Delete this room for everyone?')) return;
+                    wsRef.current?.send(JSON.stringify({ type: 'delete_room', user: user.email }));
+                  }}>Delete</button>
+                </div>
+              )}
+            </div>
+
             <div className="flex-grow-1 overflow-auto pe-2">
               {usersInRoom.map((email) => (
                 <div key={email} className="d-flex align-items-center gap-2 mb-2 p-2 bg-body-tertiary rounded-3">
@@ -412,6 +455,12 @@ export default function CodeEditor() {
                   </div>
                   <span className="small text-truncate flex-grow-1 text-body">{email}</span>
                   {email === user.email && <span className="badge bg-secondary">You</span>}
+                  {roomOwner === user.email && email !== user.email && (
+                    <button className="btn btn-sm btn-outline-danger ms-2" onClick={() => {
+                      if (!window.confirm(`Kick ${email}?`)) return;
+                      wsRef.current?.send(JSON.stringify({ type: 'kick_user', target: email, user: user.email }));
+                    }}>Kick</button>
+                  )}
                 </div>
               ))}
             </div>

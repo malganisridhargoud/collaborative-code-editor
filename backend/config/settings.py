@@ -112,6 +112,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
 ]
+import re
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.ngrok-free\.app$",
+]
 CORS_ALLOW_CREDENTIALS = True
 # Ensure auth/register/login works when browsers do preflight requests (OPTIONS)
 CORS_ALLOW_HEADERS = [
@@ -126,6 +130,7 @@ CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 CSRF_TRUSTED_ORIGINS = [
     "https://collaborative-code-editor-g1dz.vercel.app",
     "https://collaborative-code-editor-1-darj.onrender.com",
+    "https://*.ngrok-free.app",
 ]
 
 # Redis/Channels Configuration
