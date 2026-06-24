@@ -846,8 +846,3 @@ This project recently added several collaboration and room-persistence features.
 - Consider policies for automatic owner reassignment strategies (random, round-robin, or explicit transfer UI).
 - Add admin or periodic cleanup for stale rooms if desired.
 
-If you'd like, I can:
-- Render remote cursors visually in the frontend (add colored caret overlays or integrate a richer editor like CodeMirror/Monaco).
-- Add an API endpoint for listing persistent rooms and metadata.
-- Add automated tests for ownership transfer and owner-only actions.
-
