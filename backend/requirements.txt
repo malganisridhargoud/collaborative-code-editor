@@ -28,12 +28,6 @@ gunicorn
 PyMySQL==1.1.1
 
 
-# -----------------------------
-# Google OAuth (Backend)
-# -----------------------------
-google-auth==2.29.0
-google-auth-oauthlib==1.2.0
-google-auth-httplib2==0.2.0
 
 # -----------------------------
 # Security / crypto (needed by auth & channels)

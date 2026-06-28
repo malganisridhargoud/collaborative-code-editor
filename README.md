@@ -341,8 +341,6 @@ Auditing and logging
 Auth endpoints (already implemented)
 - `POST /api/auth/register/` — create user with email/password
 - `POST /api/auth/login/` — authenticate and return JWT
-- `POST /api/auth/google/` — exchange Google ID token for JWT (server validates token)
-- GitHub OAuth: `/api/auth/github/login/` and `/api/auth/github/callback/` — redirect flows
 
 Potential additional APIs to add (recommended)
 - `GET /api/rooms/` — list persistent rooms and metadata (owner, created_at, user_count)
@@ -351,7 +349,7 @@ Potential additional APIs to add (recommended)
 
 Security for APIs
 - Protect APIs with JWT authentication for actions that require identity.
-- Rate-limit sensitive endpoints such as `/api/auth/google/` to avoid abuse.
+- Rate-limit sensitive endpoints to avoid abuse.
 
 
 13. Migrations and upgrade notes
@@ -385,8 +383,6 @@ Backups
 Environment variables (examples)
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` (DB connection)
 - `REDIS_URL` (channels layer)
-- `GOOGLE_CLIENT_ID` (for Google OAuth)
-- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_REDIRECT_URI`
 
 Start backend (development)
 ```bash
@@ -590,7 +586,6 @@ End of document.
 - React 18 (Create React App)
 - Axios
 - Lucide React (icons)
-- Google OAuth client (`@react-oauth/google`)
 - Bootstrap 5 + custom CSS (responsive layout)
 - Native WebSocket API
 
@@ -618,11 +613,7 @@ End of document.
 - Register and login endpoints issue JWT access tokens.
 - Frontend stores token/user in `localStorage` and restores session on refresh.
 
-2. Google OAuth login
-- Frontend uses Google OAuth popup and sends token to backend.
-- Backend validates Google token and returns JWT for app access.
-
-3. Room-based collaboration flow
+2. Room-based collaboration flow
 - Users can create a random room ID or join an existing room.
 - Each room maps to a dedicated WebSocket channel group.
 
@@ -652,11 +643,6 @@ End of document.
 
 - `POST /api/auth/register/`
 - `POST /api/auth/login/`
-- `POST /api/auth/google/`
-- `GET /api/auth/github/login/`
-- `GET /api/auth/github/callback/`
-
-Note: GitHub OAuth backend routes exist. The current frontend login screen is wired to email/password and Google login.
 
 ## WebSocket Endpoint
 
@@ -714,10 +700,9 @@ npm start
 Optional env:
 ```env
 REACT_APP_BACKEND_URL=http://localhost:8000
-REACT_APP_GOOGLE_CLIENT_ID=<google-client-id>
 ```
 
-For local development, copy `frontend/.env.example` to `frontend/.env` and fill in your Google client ID.
+For local development, copy `frontend/.env.example` to `frontend/.env`.
 
 ## Styling & Theme
 
@@ -726,20 +711,6 @@ For local development, copy `frontend/.env.example` to `frontend/.env` and fill 
 - A theme toggle is available in the app header; the choice is persisted in `localStorage` under the key `theme` (values: `light` or `dark`).
 - To customize colors, edit the CSS variables at the top of `frontend/src/index.css`.
 
-
-### Google Login Setup
-
-If you see `Access blocked: Authorization Error`, configure the Google OAuth client in Google Cloud Console with the correct authorized JavaScript origins for the frontend you are using.
-
-For local development, add:
-```text
-http://localhost:3000
-http://127.0.0.1:3000
-```
-
-For the deployed frontend, add the production origin shown in your browser address bar.
-
-The Google OAuth client ID used by the frontend must also match the backend `GOOGLE_CLIENT_ID` value in `backend/config/settings.py`.
 
 ### MySQL Notes
 

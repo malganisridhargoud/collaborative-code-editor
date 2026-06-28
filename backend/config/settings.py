@@ -47,16 +47,8 @@ ASGI_APPLICATION = 'config.asgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'codesync'),
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
-        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -143,23 +135,13 @@ if isinstance(REDIS_URL, (list, tuple)):
 REDIS_URL = str(REDIS_URL).strip()
 
 # Channel Layers Configuration
-# Use an in-memory layer during development (DEBUG=True) to avoid a Redis
-# dependency. In production (DEBUG=False) use Redis as configured by REDIS_URL.
-if DEBUG:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer'
-        }
+# Use an in-memory layer to avoid a Redis dependency for simple deployments.
+# (Note: This limits the app to a single Daphne worker process, which is fine for free tiers).
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
     }
-else:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [REDIS_URL],
-            },
-        },
-    }
+}
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
@@ -174,15 +156,7 @@ SIMPLE_JWT = {
 }
 
 # OAuth Configuration
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
-GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-GITHUB_REDIRECT_URI = os.getenv(
-    "GITHUB_REDIRECT_URI",
-    "",
-)
 
 # Basic logging setup so consumer INFO/DEBUG messages show in console
 LOGGING = {
