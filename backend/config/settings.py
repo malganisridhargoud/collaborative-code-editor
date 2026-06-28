@@ -98,12 +98,17 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
     "https://collaborative-code-editor-g1dz.vercel.app",
     "http://localhost:3000",
     "http://localhost:5173",
 ]
+if FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+
 import re
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.ngrok-free\.app$",
@@ -117,13 +122,14 @@ CORS_ALLOW_HEADERS = [
 ]
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 
-
 # CSRF Configuration
 CSRF_TRUSTED_ORIGINS = [
     "https://collaborative-code-editor-g1dz.vercel.app",
     "https://collaborative-code-editor-1-darj.onrender.com",
     "https://*.ngrok-free.app",
 ]
+if FRONTEND_URL not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
 
 # Redis/Channels Configuration
 # Get Redis URL - ensure it's a proper string
